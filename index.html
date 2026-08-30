@@ -21,19 +21,19 @@
 
   <h2>Dados de Entrada</h2>
   <label>Valor do Imóvel:</label>
-  <input type="number" id="valorImovel" placeholder="Ex: 475000">
+  <input type="number" id="valorImovel" placeholder="475000">
 
-  <label>Entrada à vista:</label>
-  <input type="number" id="entradaAvista" placeholder="Ex: 10000">
+  <label>Salário Bruto:</label>
+  <input type="number" id="salarioBruto" placeholder="12477.61">
 
-  <label>Parcelas da Entrada (mensal):</label>
-  <input type="number" id="parcelaEntrada" placeholder="Ex: 1000">
+  <label>Despesas Atuais (aluguel + condomínio):</label>
+  <input type="number" id="despesasAtuais" placeholder="2500">
 
-  <label>Despesas Mensais (aluguel, condomínio, etc.):</label>
-  <input type="number" id="despesasMensais" placeholder="Ex: 2500">
+  <label>Despesas Novas (parcela + condomínio):</label>
+  <input type="number" id="despesasNovas" placeholder="3400">
 
   <label>Prestação do Financiamento:</label>
-  <input type="number" id="prestacaoFinanciamento" placeholder="Ex: 3000">
+  <input type="number" id="prestacaoFinanciamento" placeholder="3000">
 
   <button onclick="simular()">Simular</button>
 
@@ -47,40 +47,100 @@
     </tr>
   </table>
 
-  <script>
-    function simular() {
-      const valorImovel = parseFloat(document.getElementById("valorImovel").value) || 0;
-      const entradaAvista = parseFloat(document.getElementById("entradaAvista").value) || 0;
-      const parcelaEntrada = parseFloat(document.getElementById("parcelaEntrada").value) || 0;
-      const despesasMensais = parseFloat(document.getElementById("despesasMensais").value) || 0;
-      const prestacaoFinanciamento = parseFloat(document.getElementById("prestacaoFinanciamento").value) || 0;
+<script>
+// Funções simplificadas em JS
 
-      const tabela = document.getElementById("resultado");
-      tabela.innerHTML = `
-        <tr>
-          <th>Mês</th>
-          <th>Total Entradas</th>
-          <th>Total Saídas</th>
-          <th>Saldo Líquido</th>
-        </tr>
-      `;
-
-      // Exemplo: simular 12 meses
-      for (let mes = 1; mes <= 12; mes++) {
-        const entradas = 9500; // salário fixo de exemplo
-        const saidas = despesasMensais + prestacaoFinanciamento + (mes === 1 ? entradaAvista : parcelaEntrada);
-        const saldo = entradas - saidas;
-
-        tabela.innerHTML += `
-          <tr>
-            <td>${mes}</td>
-            <td>R$ ${entradas.toFixed(2)}</td>
-            <td>R$ ${saidas.toFixed(2)}</td>
-            <td class="${saldo >= 0 ? 'positivo' : 'negativo'}">R$ ${saldo.toFixed(2)}</td>
-          </tr>
-        `;
-      }
+function calcularINSS(salarioBruto) {
+  const faixas = [
+    [1621.00, 0.075],
+    [2902.84, 0.09],
+    [4354.27, 0.12],
+    [8475.55, 0.14]
+  ];
+  let desconto = 0, restante = salarioBruto, limiteAnterior = 0;
+  for (let [limite, aliquota] of faixas) {
+    const faixaValor = Math.min(restante, limite - limiteAnterior);
+    if (faixaValor > 0) {
+      desconto += faixaValor * aliquota;
+      restante -= faixaValor;
     }
-  </script>
+    limiteAnterior = limite;
+  }
+  return desconto;
+}
+
+function calcularIRRF(salarioBruto, inss) {
+  const base = salarioBruto - inss;
+  const faixas = [
+    [2428.80, 0.0, 0.0],
+    [2826.66, 0.075, 182.16],
+    [3751.05, 0.15, 394.16],
+    [4664.68, 0.225, 675.49],
+    [999999, 0.275, 908.73]
+  ];
+  for (let [limite, aliquota, deducao] of faixas) {
+    if (base <= limite) return base * aliquota - deducao;
+  }
+  return 0;
+}
+
+function fluxoEntradas(meses, salarioBruto) {
+  let fluxo = [];
+  for (let mes = 1; mes <= meses; mes++) {
+    const inss = calcularINSS(salarioBruto);
+    const irrf = calcularIRRF(salarioBruto, inss);
+    const salarioLiquido = salarioBruto - inss - Math.max(irrf, 0);
+    fluxo.push({ mes, total_entradas: salarioLiquido });
+  }
+  return fluxo;
+}
+
+function fluxoDespesasTransicao(meses, despesasAtuais, despesasNovas, inicioNovas, fimAtuais) {
+  let fluxo = [];
+  for (let mes = 1; mes <= meses; mes++) {
+    let totalMes = 0;
+    if (!fimAtuais || mes <= fimAtuais) totalMes += despesasAtuais;
+    if (mes >= inicioNovas) totalMes += despesasNovas;
+    fluxo.push({ mes, total_despesas: totalMes });
+  }
+  return fluxo;
+}
+
+function simular() {
+  const valorImovel = parseFloat(document.getElementById("valorImovel").value) || 0;
+  const salarioBruto = parseFloat(document.getElementById("salarioBruto").value) || 0;
+  const despesasAtuais = parseFloat(document.getElementById("despesasAtuais").value) || 0;
+  const despesasNovas = parseFloat(document.getElementById("despesasNovas").value) || 0;
+  const prestacaoFinanciamento = parseFloat(document.getElementById("prestacaoFinanciamento").value) || 0;
+
+  const meses = 12; // exemplo: 12 meses
+  const entradas = fluxoEntradas(meses, salarioBruto);
+  const despesas = fluxoDespesasTransicao(meses, despesasAtuais, despesasNovas, 2, 4);
+
+  const tabela = document.getElementById("resultado");
+  tabela.innerHTML = `
+    <tr>
+      <th>Mês</th>
+      <th>Total Entradas</th>
+      <th>Total Saídas</th>
+      <th>Saldo Líquido</th>
+    </tr>
+  `;
+
+  for (let mes = 1; mes <= meses; mes++) {
+    const entradasMes = entradas.find(f => f.mes === mes).total_entradas;
+    const despesasMes = despesas.find(f => f.mes === mes).total_despesas + prestacaoFinanciamento;
+    const saldo = entradasMes - despesasMes;
+    tabela.innerHTML += `
+      <tr>
+        <td>${mes}</td>
+        <td>R$ ${entradasMes.toFixed(2)}</td>
+        <td>R$ ${despesasMes.toFixed(2)}</td>
+        <td class="${saldo >= 0 ? 'positivo' : 'negativo'}">R$ ${saldo.toFixed(2)}</td>
+      </tr>
+    `;
+  }
+}
+</script>
 </body>
 </html>
