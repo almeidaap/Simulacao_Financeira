@@ -1,140 +1,853 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Simulação de Financiamento - Tabela Price</title>
+  <meta charset="utf-8" />
+  <title>Simulação Completa de Financiamento (FGTS) — Versão Final</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h1, h2 { color: #2c3e50; }
-    label { display: block; margin-top: 10px; }
-    input { padding: 5px; width: 250px; }
-    button { margin-top: 15px; padding: 10px 20px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
-    th { background-color: #f4f4f4; }
+    body { font-family: Arial, sans-serif; margin:18px; color:#222; }
+    h1,h2 { color:#123; margin:6px 0; }
+    label { display:block; margin-top:10px; font-weight:600; }
+    input, select, button, textarea { padding:8px; margin-top:6px; width:260px; }
+    button { cursor:pointer; }
+    .small { width:140px; display:inline-block; margin-right:8px; }
+    .inline { display:inline-block; vertical-align:middle; margin-right:8px; }
+    .wide { width:420px; }
+    .flex { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .note { font-size:13px; color:#555; margin-top:8px; }
+    table { border-collapse:collapse; width:100%; margin-top:18px; font-size:13px; }
+    th, td { border:1px solid #ddd; padding:8px; text-align:right; vertical-align:top; }
+    th { background:#f3f6f9; color:#111; font-weight:700; }
+    td.left { text-align:left; }
+    ul { margin:8px 0 16px 18px; padding:0; }
+    .muted { color:#666; font-size:13px; }
+    /* destaque saldos negativos */
+    .neg { color: #c62828; font-weight:700; }
+    /* pequenas melhorias visuais */
+    table th, table td { white-space: nowrap; }
+    .disclaimer { margin-top:12px; font-size:13px; color:#444; background:#fff8e1; padding:10px; border-left:4px solid #ffb300; }
+    .btn-small { padding:6px 10px; font-size:13px; }
   </style>
 </head>
 <body>
-  <h1>Simulação de Financiamento - Tabela Price</h1>
+  <h1>Simulação de Financiamento Imobiliário (FGTS)</h1>
 
-  <h2>Dados de Entrada</h2>
-  <label>Valor do Imóvel:</label>
-  <input type="number" id="valorImovel" placeholder="475000">
+  <section>
+    <h2>Configuração</h2>
 
-  <label>Percentual de Entrada (%):</label>
-  <input type="number" id="percentualEntrada" value="20">
+    <label>Data inicial</label>
+    <input type="date" id="dataInicio">
 
-  <label>Data de Referência:</label>
-  <input type="date" id="dataReferencia">
+    <label>Quantidade de meses para simulação</label>
+    <input type="number" id="qtdSimulacao" value="360">
 
-  <label>Taxa de Juros Anual (%):</label>
-  <input type="number" id="taxaJuros" placeholder="10">
+    <label>Preço do imóvel (R$)</label>
+    <input type="number" id="precoImovel" value="475000">
 
-  <label>Número de Meses do Financiamento:</label>
-  <input type="number" id="numMeses" placeholder="420">
+    <label>Percentual de entrada (%)</label>
+    <input type="number" id="percentualEntrada" value="20">
 
-  <label>Seguro Habitacional (R$):</label>
-  <input type="number" id="seguro" value="75">
+    <label>Usar parcelamento da construtora?</label>
+    <select id="usarConstrutora">
+      <option value="nao">Não — entrada paga à vista</option>
+      <option value="sim">Sim — definir parcelamento da construtora</option>
+    </select>
 
-  <label>Taxa de Manutenção do Contrato (R$):</label>
-  <input type="number" id="manutencao" value="30">
+    <div id="construtoraInputs" style="display:none; margin-top:8px;">
+      <label>Meses do parcelamento (ex: 24)</label>
+      <input type="number" id="mesesParcelamento" value="24">
 
-  <button onclick="simularFinanciamento()">Calcular Financiamento</button>
+      <label>Valor primeira parcela (R$)</label>
+      <input type="number" id="primeiraParcela" value="0">
 
-  <h2>Resultado</h2>
-  <p id="infoEntrada"></p>
-  <table id="resultadoFinanciamento">
-    <tr>
-      <th>Mês</th>
-      <th>Data</th>
-      <th>Prestação Base (R$)</th>
-      <th>Juros (R$)</th>
-      <th>Amortização (R$)</th>
-      <th>Encargos (R$)</th>
-      <th>Prestação Total (R$)</th>
-      <th>Saldo Devedor (R$)</th>
-    </tr>
-  </table>
+      <label>Valor última parcela (R$)</label>
+      <input type="number" id="ultimaParcela" value="0">
+
+      <div class="note">Adicione balões pontuais (data + valor). Cada balão será aplicado apenas na data exata que você informar.</div>
+
+      <h4>Balões pontuais (adicionar)</h4>
+      <div class="flex">
+        <input type="date" id="balaoData" class="inline">
+        <input type="number" id="balaoValor" placeholder="Valor do balão (R$)" class="inline small">
+        <button id="btnAddBalao" class="btn-small">Adicionar balão</button>
+      </div>
+      <ul id="listaBaloes"></ul>
+    </div>
+
+    <label>Taxa de juros anual (%)</label>
+    <input type="number" id="taxaJuros" value="10">
+
+    <label>Prazo do financiamento (meses)</label>
+    <input type="number" id="prazoMeses" value="360">
+  </section>
+
+  <hr>
+
+  <section>
+    <h2>FGTS</h2>
+    <label>Valor FGTS (R$)</label>
+    <input type="number" id="fgtsValor" value="0">
+    <label>Data de disponibilidade do FGTS</label>
+    <input type="date" id="fgtsData">
+    <label>Modo de uso do FGTS</label>
+    <select id="fgtsModo">
+      <option value="usarNaEntrada">Usar na entrada (se disponível)</option>
+      <option value="usarDepois_abaterSaldo">Usar depois - abater saldo</option>
+      <option value="usarDepois_reduzirParcelas">Usar depois - reduzir parcelas 12 meses</option>
+    </select>
+  </section>
+
+  <hr>
+
+  <section>
+    <h2>Fluxo (entradas e despesas)</h2>
+    <label>Salário bruto mensal (R$)</label>
+    <input type="number" id="salarioBruto" value="12477.61">
+
+    <label>Meses 13º (ex: 12 ou 11,12)</label>
+    <input type="text" id="meses13" value="12">
+
+    <label>13º em duas parcelas?</label>
+    <select id="duasParcelas"><option value="false">Não</option><option value="true">Sim</option></select>
+
+    <label>Meses de bônus (ex: 2,5,8,11)</label>
+    <input type="text" id="mesesBonus" value="">
+
+    <label>Valor bruto do bônus (R$)</label>
+    <input type="number" id="valorBonus" value="0">
+
+    <label>Renda extra isenta (R$) — sem INSS/IRRF</label>
+    <input type="number" id="rendaExtra" value="0">
+
+    <h3>Despesas Fixas</h3>
+    <div class="flex">
+      <input type="text" id="nomeFixa" placeholder="Ex: Aluguel" class="inline wide">
+      <input type="number" id="valorFixa" placeholder="2000" class="inline small">
+      <button id="btnAddFixa" class="btn-small">Adicionar fixa</button>
+    </div>
+    <ul id="listaFixas"></ul>
+
+    <h3>Despesas Pontuais (cada uma com data específica)</h3>
+    <div class="flex">
+      <input type="text" id="nomePontual" placeholder="Descrição (ex: Reforma)" class="inline wide">
+      <input type="number" id="valorPontual" placeholder="Valor (R$)" class="inline small">
+      <input type="date" id="dataPontual" class="inline">
+      <button id="btnAddPontual" class="btn-small">Adicionar pontual</button>
+    </div>
+    <div class="muted">As despesas pontuais são lançadas na data exata que você informar e não repetem automaticamente.</div>
+    <ul id="listaPontuais"></ul>
+  </section>
+
+  <div style="margin-top:12px;">
+    <button id="btnGerar" class="btn-small">Gerar Simulação Completa</button>
+    <button id="btnExport" class="btn-small" style="margin-left:8px">Exportar CSV (consolidado)</button>
+  </div>
+
+  <div id="resultado" style="margin-top:18px;"></div>
 
 <script>
-function financiamentoPrice(valorFinanciado, taxaJurosAnual, meses, taxaManutencao, seguro) {
-  const i_m = (taxaJurosAnual / 100) / 12;
-  const pmt = valorFinanciado * (i_m * Math.pow(1 + i_m, meses)) / (Math.pow(1 + i_m, meses) - 1);
+/* ---------- utilitários ---------- */
+function safeFloat(v){ return isNaN(parseFloat(v)) ? 0 : parseFloat(v); }
+function fmt(v){ return Number(v||0).toFixed(2); }
 
-  let saldoDevedor = valorFinanciado;
-  let amortizacao = [];
+/* ---------- armazenamento ---------- */
+let despesasFixas = [];
+let despesasPontuais = []; // {nome, valor, dateStr, mes, year, day}
+let baloesPontuais = [];   // {dateStr, mes, year, day, valor}
 
-  for (let mes = 1; mes <= meses; mes++) {
-    const juros = saldoDevedor * i_m;
-    const amortizacaoMes = pmt - juros;
-    saldoDevedor -= amortizacaoMes;
-
-    const encargos = taxaManutencao + seguro;
-    const parcelaTotal = pmt + encargos;
-
-    amortizacao.push({
-      mes: mes,
-      prestacao_base: pmt,
-      juros: juros,
-      amortizacao: amortizacaoMes,
-      encargos: encargos,
-      prestacao_total: parcelaTotal,
-      saldo_devedor: saldoDevedor
-    });
-  }
-  return amortizacao;
+/* ---------- UI helpers ---------- */
+function atualizarListaFixas(){
+  const ul = document.getElementById('listaFixas'); ul.innerHTML = '';
+  despesasFixas.forEach((d, idx)=>{
+    const li = document.createElement('li');
+    li.textContent = `${d.nome}: R$ ${fmt(d.valor)}`;
+    const btn = document.createElement('button'); btn.textContent = 'Remover'; btn.style.marginLeft='8px';
+    btn.addEventListener('click', ()=>{ despesasFixas.splice(idx,1); atualizarListaFixas(); });
+    li.appendChild(btn);
+    ul.appendChild(li);
+  });
+}
+function atualizarListaPontuais(){
+  const ul = document.getElementById('listaPontuais'); ul.innerHTML = '';
+  despesasPontuais.forEach((d, idx)=>{
+    const li = document.createElement('li');
+    li.textContent = `${d.dateStr} — ${d.nome}: R$ ${fmt(d.valor)}`;
+    const btn = document.createElement('button'); btn.textContent = 'Remover'; btn.style.marginLeft='8px';
+    btn.addEventListener('click', ()=>{ despesasPontuais.splice(idx,1); atualizarListaPontuais(); });
+    li.appendChild(btn);
+    ul.appendChild(li);
+  });
+}
+function atualizarListaBaloes(){
+  const ul = document.getElementById('listaBaloes'); if(!ul) return;
+  ul.innerHTML = '';
+  baloesPontuais.forEach((b, idx)=>{
+    const li = document.createElement('li');
+    li.textContent = `${b.dateStr}: R$ ${fmt(b.valor)}`;
+    const btn = document.createElement('button'); btn.textContent = 'Remover'; btn.style.marginLeft='8px';
+    btn.addEventListener('click', ()=>{ baloesPontuais.splice(idx,1); atualizarListaBaloes(); });
+    li.appendChild(btn);
+    ul.appendChild(li);
+  });
 }
 
-function simularFinanciamento() {
-  const valorImovel = parseFloat(document.getElementById("valorImovel").value) || 0;
-  const percentualEntrada = parseFloat(document.getElementById("percentualEntrada").value) || 20;
-  const dataReferencia = new Date(document.getElementById("dataReferencia").value);
-  const taxaJuros = parseFloat(document.getElementById("taxaJuros").value) || 0;
-  const numMeses = parseInt(document.getElementById("numMeses").value) || 0;
-  const seguro = parseFloat(document.getElementById("seguro").value) || 75;
-  const manutencao = parseFloat(document.getElementById("manutencao").value) || 30;
+/* ---------- eventos de adicionar despesas e balões ---------- */
+document.getElementById('btnAddFixa').addEventListener('click', function(){
+  const nome = document.getElementById('nomeFixa').value.trim();
+  const valor = safeFloat(document.getElementById('valorFixa').value);
+  if(!nome || valor<=0) return alert('Informe nome e valor válidos para despesa fixa.');
+  despesasFixas.push({nome, valor});
+  document.getElementById('nomeFixa').value=''; document.getElementById('valorFixa').value='';
+  atualizarListaFixas();
+});
+document.getElementById('btnAddPontual').addEventListener('click', function(){
+  const nome = document.getElementById('nomePontual').value.trim();
+  const valor = safeFloat(document.getElementById('valorPontual').value);
+  const data = document.getElementById('dataPontual').value;
+  if(!nome || valor<=0 || !data) return alert('Informe descrição, valor e data para a despesa pontual.');
+  // parse seguro "YYYY-MM-DD"
+  const parts = data.split('-');
+  const year = parseInt(parts[0],10);
+  const month = parseInt(parts[1],10);
+  const day = parseInt(parts[2],10);
+  despesasPontuais.push({nome, valor, dateStr: data, mes: month, year: year, day: day});
+  document.getElementById('nomePontual').value=''; document.getElementById('valorPontual').value=''; document.getElementById('dataPontual').value='';
+  atualizarListaPontuais();
+});
+document.getElementById('btnAddBalao').addEventListener('click', function(){
+  const data = document.getElementById('balaoData').value;
+  const valor = safeFloat(document.getElementById('balaoValor').value);
+  if(!data || valor<=0) return alert('Informe data e valor do balão.');
+  const parts = data.split('-');
+  const year = parseInt(parts[0],10);
+  const month = parseInt(parts[1],10);
+  const day = parseInt(parts[2],10);
+  baloesPontuais.push({dateStr: data, mes: month, year: year, day: day, valor});
+  document.getElementById('balaoData').value=''; document.getElementById('balaoValor').value='';
+  atualizarListaBaloes();
+});
 
-  // Entrada = percentual do imóvel, Financiamento = restante
-  const valorEntrada = valorImovel * (percentualEntrada / 100);
-  const valorFinanciado = valorImovel - valorEntrada;
+/* ---------- mostrar inputs da construtora ---------- */
+document.getElementById('usarConstrutora').addEventListener('change', function(){
+  document.getElementById('construtoraInputs').style.display = this.value === 'sim' ? 'block' : 'none';
+});
 
-  document.getElementById("infoEntrada").innerText =
-    `Entrada: R$ ${valorEntrada.toFixed(2)} (${percentualEntrada}% do imóvel) | Financiamento: R$ ${valorFinanciado.toFixed(2)} (${(100 - percentualEntrada)}%)`;
-
-  const fluxo = financiamentoPrice(valorFinanciado, taxaJuros, numMeses, manutencao, seguro);
-
-  const tabela = document.getElementById("resultadoFinanciamento");
-  tabela.innerHTML = `
-    <tr>
-      <th>Mês</th>
-      <th>Data</th>
-      <th>Prestação Base (R$)</th>
-      <th>Juros (R$)</th>
-      <th>Amortização (R$)</th>
-      <th>Encargos (R$)</th>
-      <th>Prestação Total (R$)</th>
-      <th>Saldo Devedor (R$)</th>
-    </tr>
-  `;
-
-  for (let item of fluxo) {
-    const dataMes = new Date(dataReferencia);
-    dataMes.setMonth(dataReferencia.getMonth() + item.mes - 1);
-    const dataFormatada = dataMes.toLocaleDateString("pt-BR");
-
-    tabela.innerHTML += `
-      <tr>
-        <td>${item.mes}</td>
-        <td>${dataFormatada}</td>
-        <td>R$ ${item.prestacao_base.toFixed(2)}</td>
-        <td>R$ ${item.juros.toFixed(2)}</td>
-        <td>R$ ${item.amortizacao.toFixed(2)}</td>
-        <td>R$ ${item.encargos.toFixed(2)}</td>
-        <td>R$ ${item.prestacao_total.toFixed(2)}</td>
-        <td>R$ ${item.saldo_devedor.toFixed(2)}</td>
-      </tr>
-    `;
+/* ---------- gerar parcelas construtora (linear) com balões pontuais ----------
+   - mesesParcelamento: total months of parceling
+   - primeira, ultima: first and last installment base values
+   - baloes: array of {dateStr, mes, year, day, valor}
+   - startMonth/startYear: calendar month/year corresponding to parcel month 1
+*/
+function gerarParcelasConstrutoraLinearComBaloes(mesesParcelamento, primeira, ultima, baloes, startMonth, startYear){
+  mesesParcelamento = Math.max(1, Math.floor(mesesParcelamento));
+  const parcelas = new Array(mesesParcelamento).fill(0);
+  for(let i=0;i<mesesParcelamento;i++){
+    const t = mesesParcelamento===1?0:i/(mesesParcelamento-1);
+    parcelas[i] = primeira*(1-t) + ultima*t;
   }
+  // adicionar balões pontuais: verificar mês+ano de cada parcela e somar balões que coincidirem exatamente
+  for(let i=0;i<mesesParcelamento;i++){
+    const totalOffset = (startMonth - 1) + i;
+    const calendarMonth = (totalOffset % 12) + 1;
+    const calendarYear = startYear + Math.floor(totalOffset / 12);
+    (baloes||[]).forEach(b=>{
+      if(b.mes === calendarMonth && b.year === calendarYear){
+        parcelas[i] += safeFloat(b.valor);
+      }
+    });
+  }
+  return parcelas.map(x=>Number(x));
+}
+
+/* ---------- cálculos principais ---------- */
+function calcularEntradaEFinanciamento({precoImovel, fgtsDisponivelValor=0, usarFgtsNaEntrada=false, percentualEntrada=20, taxaJurosAnual=10, prazoFinanciamentoMeses=360}){
+  precoImovel = safeFloat(precoImovel);
+  fgtsDisponivelValor = safeFloat(fgtsDisponivelValor);
+  percentualEntrada = safeFloat(percentualEntrada);
+
+  let fgtsAplicadoNaEntrada = 0;
+  let precoEfetivo = precoImovel;
+  if(usarFgtsNaEntrada && fgtsDisponivelValor>0){
+    const aplicar = Math.min(fgtsDisponivelValor, precoImovel);
+    precoEfetivo = precoImovel - aplicar;
+    fgtsAplicadoNaEntrada = aplicar;
+  }
+
+  const entrada20 = precoEfetivo * (percentualEntrada/100);
+  const saldoFinanciadoInicial = Math.max(0, precoEfetivo - entrada20);
+
+  const taxaMensal = taxaJurosAnual/100/12;
+  let prestacaoInicial = 0;
+  if(prazoFinanciamentoMeses>0){
+    if(taxaMensal>0) prestacaoInicial = saldoFinanciadoInicial * (taxaMensal / (1 - Math.pow(1+taxaMensal, -prazoFinanciamentoMeses)));
+    else prestacaoInicial = saldoFinanciadoInicial / prazoFinanciamentoMeses;
+  }
+
+  return { precoEfetivo, entrada20, fgtsAplicadoNaEntrada, saldoFinanciadoInicial, prestacaoInicial };
+}
+
+/* Aplica FGTS no financiamento (abate saldo ou reduz parcelas 12 meses) */
+function aplicarFgtsNoFinanciamento({saldoDevedorAtual, prestacaoAtual, taxaJurosAnual, prazoRestanteMeses, fgtsDisponivelValor, modo}){
+  saldoDevedorAtual = safeFloat(saldoDevedorAtual);
+  prestacaoAtual = safeFloat(prestacaoAtual);
+  taxaJurosAnual = safeFloat(taxaJurosAnual);
+  prazoRestanteMeses = Math.max(0, Math.floor(prazoRestanteMeses));
+  fgtsDisponivelValor = safeFloat(fgtsDisponivelValor);
+
+  const taxaMensal = taxaJurosAnual/100/12;
+  let novoSaldo = saldoDevedorAtual;
+  let novaPrestacao = prestacaoAtual;
+  let planoReducao = null;
+  let fgtsUsado = 0;
+
+  if(fgtsDisponivelValor<=0) return {novoSaldo, novaPrestacao, planoReducao, fgtsUsado};
+
+  if(modo === 'abaterSaldo'){
+    const aplicar = Math.min(fgtsDisponivelValor, saldoDevedorAtual);
+    novoSaldo = Math.max(0, saldoDevedorAtual - aplicar);
+    fgtsUsado = aplicar;
+    if(prazoRestanteMeses>0){
+      if(taxaMensal>0) novaPrestacao = novoSaldo * (taxaMensal / (1 - Math.pow(1+taxaMensal, -prazoRestanteMeses)));
+      else novaPrestacao = novoSaldo / prazoRestanteMeses;
+    } else novaPrestacao = 0;
+  } else {
+    const meses = 12;
+    const maxReducaoPorMes = 0.8 * prestacaoAtual;
+    if(fgtsDisponivelValor >= maxReducaoPorMes * meses){
+      planoReducao = { inicioIndex: 0, meses, reducaoPorMes: maxReducaoPorMes, totalAplicado: maxReducaoPorMes*meses, aplicadoSoFar: 0 };
+      fgtsUsado = maxReducaoPorMes*meses;
+    } else {
+      const reducaoPorMes = Math.min(fgtsDisponivelValor/meses, maxReducaoPorMes);
+      const totalAplicavel = Math.min(fgtsDisponivelValor, reducaoPorMes*meses);
+      if(reducaoPorMes>0) {
+        planoReducao = { inicioIndex: 0, meses, reducaoPorMes, totalAplicado: totalAplicavel, aplicadoSoFar: 0 };
+        fgtsUsado = totalAplicavel;
+      }
+    }
+  }
+
+  return {novoSaldo, novaPrestacao, planoReducao, fgtsUsado};
+}
+
+/* ---------- gerar fluxo consolidado (handler) ---------- */
+document.getElementById('btnGerar').addEventListener('click', function(){
+  try {
+    const dataInicio = document.getElementById('dataInicio').value;
+    if(!dataInicio) return alert('Informe a data inicial da análise.');
+    // parse seguro da data inicial (YYYY-MM-DD)
+    const partsStart = dataInicio.split('-');
+    const startYear = parseInt(partsStart[0],10);
+    const startMonth = parseInt(partsStart[1],10); // 1..12
+    const inicio = new Date(startYear, startMonth-1, 1); // dia 1 para evitar overflow
+
+    const qtdSimulacao = Math.max(1, parseInt(document.getElementById('qtdSimulacao').value||360));
+
+    const precoImovel = safeFloat(document.getElementById('precoImovel').value);
+    const percentualEntrada = safeFloat(document.getElementById('percentualEntrada').value) || 20;
+    const usarConstrutora = document.getElementById('usarConstrutora').value === 'sim';
+    const mesesParcelamento = Math.max(1, Math.floor(document.getElementById('mesesParcelamento').value||24));
+    const primeiraParcela = safeFloat(document.getElementById('primeiraParcela').value);
+    const ultimaParcela = safeFloat(document.getElementById('ultimaParcela').value);
+
+    const taxaJuros = safeFloat(document.getElementById('taxaJuros').value) || 10;
+    const prazoMeses = Math.max(0, Math.floor(document.getElementById('prazoMeses').value||360));
+
+    const fgtsValor = safeFloat(document.getElementById('fgtsValor').value);
+    const fgtsDataStr = document.getElementById('fgtsData').value;
+    const fgtsData = fgtsDataStr ? (function(){ const p=fgtsDataStr.split('-'); return new Date(parseInt(p[0],10), parseInt(p[1],10)-1, 1); })() : null;
+    const fgtsModoSelect = document.getElementById('fgtsModo').value;
+
+    const salarioBruto = safeFloat(document.getElementById('salarioBruto').value);
+    const meses13 = document.getElementById('meses13').value.split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x));
+    const duasParcelas = document.getElementById('duasParcelas').value === 'true';
+    const mesesBonus = document.getElementById('mesesBonus').value.split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x));
+    const valorBonus = safeFloat(document.getElementById('valorBonus').value);
+
+    const rendaExtra = safeFloat(document.getElementById('rendaExtra').value);
+
+    // FGTS disponível no início (comparo por mês/ano)
+    const fgtsDisponivelNoInicio = fgtsData && (fgtsData.getFullYear() < inicio.getFullYear() || (fgtsData.getFullYear()===inicio.getFullYear() && fgtsData.getMonth()<=inicio.getMonth()));
+    const usarFgtsNaEntrada = (fgtsModoSelect === 'usarNaEntrada') && fgtsDisponivelNoInicio && fgtsValor>0;
+
+    // calcular entrada/financiamento
+    const calc = calcularEntradaEFinanciamento({
+      precoImovel,
+      fgtsDisponivelValor: usarFgtsNaEntrada ? fgtsValor : 0,
+      usarFgtsNaEntrada: usarFgtsNaEntrada,
+      percentualEntrada,
+      taxaJurosAnual: taxaJuros,
+      prazoFinanciamentoMeses: prazoMeses
+    });
+
+    let fgtsRestante = fgtsValor - calc.fgtsAplicadoNaEntrada;
+    let fgtsAplicadoTotal = calc.fgtsAplicadoNaEntrada;
+
+    // entrada parcelada (construtora) - se usarConstrutora, gerar com balões pontuais
+    let entradaParceladaArray = [];
+    if(usarConstrutora){
+      const startMonthNum = inicio.getMonth()+1; // 1..12
+      const startYearNum = inicio.getFullYear();
+      entradaParceladaArray = gerarParcelasConstrutoraLinearComBaloes(mesesParcelamento, primeiraParcela||0, ultimaParcela||0, baloesPontuais, startMonthNum, startYearNum);
+    }
+
+    // financiamento inicial
+    let saldoDevedor = calc.saldoFinanciadoInicial;
+    let prestacao = calc.prestacaoInicial;
+    const prazoOriginal = prazoMeses;
+
+    // flag para evitar aplicar FGTS mais de uma vez
+    let fgtsAplicadoFlag = false;
+    // aplicar FGTS imediatamente se não usado na entrada e FGTS já disponível no início
+    if (!usarFgtsNaEntrada && fgtsDisponivelNoInicio && fgtsValor > 0) {
+      if (fgtsModoSelect === 'usarDepois_abaterSaldo') {
+        const res = aplicarFgtsNoFinanciamento({
+          saldoDevedorAtual: saldoDevedor,
+          prestacaoAtual: prestacao,
+          taxaJurosAnual: taxaJuros,
+          prazoRestanteMeses: prazoOriginal,
+          fgtsDisponivelValor: fgtsRestante,
+          modo: 'abaterSaldo'
+        });
+        saldoDevedor = res.novoSaldo;
+        prestacao = res.novaPrestacao;
+        fgtsAplicadoTotal += res.fgtsUsado;
+        fgtsRestante = Math.max(0, fgtsRestante - res.fgtsUsado);
+        fgtsAplicadoFlag = true;
+      } else if (fgtsModoSelect === 'usarDepois_reduzirParcelas') {
+        const res = aplicarFgtsNoFinanciamento({
+          saldoDevedorAtual: saldoDevedor,
+          prestacaoAtual: prestacao,
+          taxaJurosAnual: taxaJuros,
+          prazoRestanteMeses: prazoOriginal,
+          fgtsDisponivelValor: fgtsRestante,
+          modo: 'reduzirParcelas12'
+        });
+        if (res.planoReducao) { res.planoReducao.inicioIndex = 0; planoReducao = res.planoReducao; }
+        fgtsAplicadoTotal += res.fgtsUsado;
+        fgtsRestante = Math.max(0, fgtsRestante - res.fgtsUsado);
+        fgtsAplicadoFlag = true;
+      }
+    }
+
+    // gerar meses
+    const fluxo = [];
+    let fgtsAplicadoNoFuturo = 0;
+
+    for(let i=0;i<qtdSimulacao;i++){
+      // criar data do mês com dia 1 para evitar offset
+      const totalOffset = (inicio.getMonth()) + i;
+      const dataMes = new Date(inicio.getFullYear() + Math.floor(totalOffset/12), totalOffset % 12, 1);
+      const mesDoAno = dataMes.getMonth()+1;
+      const ano = dataMes.getFullYear();
+      const dataStr = `${String(mesDoAno).padStart(2,'0')}/${ano}`;
+
+      // se FGTS não usado na entrada e chega a data de disponibilidade, aplicar agora (aplica apenas uma vez)
+      if(!usarFgtsNaEntrada && !fgtsAplicadoFlag && fgtsRestante>0 && fgtsData &&
+         (fgtsData.getFullYear() < dataMes.getFullYear() || (fgtsData.getFullYear()===dataMes.getFullYear() && fgtsData.getMonth()<=dataMes.getMonth()))){
+        if(fgtsModoSelect === 'usarDepois_abaterSaldo'){
+          const mesesRestantes = Math.max(0, prazoOriginal - i);
+          const res = aplicarFgtsNoFinanciamento({
+            saldoDevedorAtual: saldoDevedor,
+            prestacaoAtual: prestacao,
+            taxaJurosAnual: taxaJuros,
+            prazoRestanteMeses: mesesRestantes,
+            fgtsDisponivelValor: fgtsRestante,
+            modo: 'abaterSaldo'
+          });
+          saldoDevedor = res.novoSaldo;
+          prestacao = res.novaPrestacao;
+          fgtsAplicadoTotal += res.fgtsUsado;
+          fgtsAplicadoNoFuturo += res.fgtsUsado;
+          fgtsRestante = Math.max(0, fgtsRestante - res.fgtsUsado);
+          fgtsAplicadoFlag = true;
+        } else if(fgtsModoSelect === 'usarDepois_reduzirParcelas'){
+          const res = aplicarFgtsNoFinanciamento({
+            saldoDevedorAtual: saldoDevedor,
+            prestacaoAtual: prestacao,
+            taxaJurosAnual: taxaJuros,
+            prazoRestanteMeses: Math.max(0, prazoOriginal - i),
+            fgtsDisponivelValor: fgtsRestante,
+            modo: 'reduzirParcelas12'
+          });
+          if(res.planoReducao){ res.planoReducao.inicioIndex = i; planoReducao = res.planoReducao; }
+          fgtsAplicadoTotal += res.fgtsUsado;
+          fgtsAplicadoNoFuturo += res.fgtsUsado;
+          fgtsRestante = Math.max(0, fgtsRestante - res.fgtsUsado);
+          fgtsAplicadoFlag = true;
+        }
+      }
+
+      // entradas (salário, 13º, bônus)
+      const inss = calcularINSS(salarioBruto);
+      const irrf = calcularIRRF(salarioBruto, inss);
+      const salarioLiquido = salarioBruto - inss - Math.max(0, irrf);
+
+      let decimoTerceiro = 0;
+      if(meses13.includes(mesDoAno)){
+        if(duasParcelas && meses13.length===2){
+          decimoTerceiro = (mesDoAno === meses13[0]) ? salarioBruto/2 : salarioLiquido/2;
+        } else decimoTerceiro = salarioLiquido;
+      }
+
+      let bonusLiquido = 0;
+      if(mesesBonus.includes(mesDoAno) && valorBonus>0){
+        const inssB = calcularINSS(valorBonus);
+        const irrfB = calcularIRRF(valorBonus, inssB);
+        bonusLiquido = valorBonus - inssB - Math.max(0, irrfB);
+      }
+
+      // total entradas inclui renda extra isenta
+      const totalEntradas = salarioLiquido + decimoTerceiro + bonusLiquido + rendaExtra;
+
+      // despesas fixas
+      let detalhesFixas = [], totalFixas = 0;
+      despesasFixas.forEach(d=>{ totalFixas += d.valor; detalhesFixas.push(`${d.nome}: R$ ${fmt(d.valor)}`); });
+
+      // despesas pontuais: aplicar apenas as que têm a mesma month+year da data informada
+      let detalhesPontuais = [], totalPontuais = 0;
+      despesasPontuais.forEach(d=>{
+        if(d.mes === mesDoAno && d.year === ano){
+          totalPontuais += d.valor;
+          detalhesPontuais.push(`${d.dateStr} ${d.nome}: R$ ${fmt(d.valor)}`);
+        }
+      });
+
+      const totalDespesas = totalFixas + totalPontuais;
+
+      // entrada comprador aplicada
+      let entradaAplicadaComprador = 0;
+      if(!usarConstrutora){
+        if(i===0) entradaAplicadaComprador = calc.entrada20; // à vista no mês 0
+      } else {
+        // usar parcela da construtora: entrada parcelada ao longo de mesesParcelamento
+        if(i < mesesParcelamento){
+          entradaAplicadaComprador = (entradaParceladaArray[i] || 0);
+        }
+      }
+
+      // FGTS aplicado na entrada no mês 0
+      let fgtsAplicadoNaEntradaNesteMes = (i===0 ? calc.fgtsAplicadoNaEntrada : 0);
+
+      // parcela do financiamento + juros + amortização
+      let parcelaFinanciamento = 0;
+      let jurosMes = 0;
+      let amortizacao = 0;
+      if(i < prazoOriginal){
+        parcelaFinanciamento = prestacao;
+        if(typeof planoReducao !== 'undefined' && planoReducao && i >= planoReducao.inicioIndex && i < planoReducao.inicioIndex + planoReducao.meses){
+          const restantePlano = planoReducao.totalAplicado - planoReducao.aplicadoSoFar;
+          const aplicarAgora = Math.min(planoReducao.reducaoPorMes, restantePlano);
+          parcelaFinanciamento = Math.max(0, parcelaFinanciamento - aplicarAgora);
+          planoReducao.aplicadoSoFar += aplicarAgora;
+        }
+        if(taxaJuros>0){
+          jurosMes = saldoDevedor * (taxaJuros/100/12);
+          amortizacao = Math.max(0, parcelaFinanciamento - jurosMes);
+          saldoDevedor = Math.max(0, saldoDevedor - amortizacao);
+        } else {
+          jurosMes = 0;
+          amortizacao = parcelaFinanciamento;
+          saldoDevedor = Math.max(0, saldoDevedor - parcelaFinanciamento);
+        }
+      }
+
+      const saldo = totalEntradas - totalDespesas - parcelaFinanciamento - entradaAplicadaComprador;
+
+      fluxo.push({
+        index: i+1,
+        data: dataStr,
+        mesDoAno,
+        ano,
+        salarioLiquido: fmt(salarioLiquido),
+        decimoTerceiro: fmt(decimoTerceiro),
+        bonusLiquido: fmt(bonusLiquido),
+        rendaExtra: fmt(rendaExtra),
+        totalEntradas: fmt(totalEntradas),
+        detalhesFixas: detalhesFixas.join("; "),
+        totalFixas: fmt(totalFixas),
+        detalhesPontuais: detalhesPontuais.join("; "),
+        totalPontuais: fmt(totalPontuais),
+        totalDespesas: fmt(totalDespesas),
+        entradaAplicadaComprador: fmt(entradaAplicadaComprador),
+        fgtsAplicadoNaEntradaNesteMes: fmt(fgtsAplicadoNaEntradaNesteMes),
+        parcelaFinanciamento: fmt(parcelaFinanciamento),
+        jurosPago: fmt(jurosMes),
+        amortizacao: fmt(amortizacao),
+        saldoDevedorRemanescente: fmt(saldoDevedor),
+        saldo: fmt(saldo)
+      });
+    }
+
+    // renderizar (consolidado por mês/ano)
+    renderTabela(fluxo, {
+      precoImovel,
+      precoEfetivo: calc.precoEfetivo,
+      entrada20: calc.entrada20,
+      saldoFinanciadoInicial: calc.saldoFinanciadoInicial,
+      prestacaoInicial: calc.prestacaoInicial,
+      fgtsAplicadoTotal,
+      fgtsRestante
+    });
+
+    // salvar fluxo detalhado no localStorage (se quiser recuperar)
+    localStorage.setItem('simulacao_fluxo', JSON.stringify(fluxo));
+    // salvar também o último conjunto consolidado para export rápido
+    localStorage.setItem('simulacao_meta', JSON.stringify({
+      precoImovel, precoEfetivo: calc.precoEfetivo, entrada20: calc.entrada20,
+      saldoFinanciadoInicial: calc.saldoFinanciadoInicial, prestacaoInicial: calc.prestacaoInicial,
+      fgtsAplicadoTotal, fgtsRestante
+    }));
+  } catch(err){
+    console.error(err);
+    alert('Ocorreu um erro ao gerar a simulação. Veja o console (F12) para detalhes.');
+  }
+});
+
+/* ---------- export CSV (consolidado) ---------- */
+document.getElementById('btnExport').addEventListener('click', function(){
+  // reconstrói o consolidado a partir do fluxo salvo
+  const fluxo = JSON.parse(localStorage.getItem('simulacao_fluxo') || '[]');
+  const meta = JSON.parse(localStorage.getItem('simulacao_meta') || '{}');
+  if(!fluxo.length) return alert('Gere o fluxo antes de exportar.');
+
+  // agrupar por mês/ano (mesma lógica do renderTabela)
+  const agrupado = {};
+  fluxo.forEach(r => {
+    const chave = `${r.ano}-${String(r.mesDoAno).padStart(2,'0')}`;
+    if(!agrupado[chave]) {
+      agrupado[chave] = {
+        ano: r.ano,
+        mes: r.mesDoAno,
+        dataLabel: `${String(r.mesDoAno).padStart(2,'0')}/${r.ano}`,
+        salarioLiquido: 0,
+        decimoTerceiro: 0,
+        bonusLiquido: 0,
+        rendaExtra: 0,
+        totalEntradas: 0,
+        detalhesFixas: [],
+        totalFixas: 0,
+        detalhesPontuais: [],
+        totalPontuais: 0,
+        totalDespesas: 0,
+        entradaAplicadaComprador: 0,
+        fgtsAplicadoNaEntradaNesteMes: 0,
+        parcelaFinanciamento: 0,
+        jurosPago: 0,
+        amortizacao: 0,
+        saldoDevedorRemanescente: 0,
+        saldo: 0
+      };
+    }
+    const g = agrupado[chave];
+    const toNum = v => parseFloat(String(v).replace(',','').replace(/\s/g,'')) || 0;
+
+    g.salarioLiquido += toNum(r.salarioLiquido);
+    g.decimoTerceiro += toNum(r.decimoTerceiro);
+    g.bonusLiquido += toNum(r.bonusLiquido);
+    g.rendaExtra += toNum(r.rendaExtra || 0);
+    g.totalEntradas += toNum(r.totalEntradas);
+
+    g.totalFixas += toNum(r.totalFixas);
+    if(r.detalhesFixas) g.detalhesFixas.push(r.detalhesFixas);
+
+    g.totalPontuais += toNum(r.totalPontuais);
+    if(r.detalhesPontuais) {
+      if(r.detalhesPontuais.trim()) g.detalhesPontuais.push(r.detalhesPontuais);
+    }
+
+    g.totalDespesas += toNum(r.totalDespesas);
+    g.entradaAplicadaComprador += toNum(r.entradaAplicadaComprador);
+    g.fgtsAplicadoNaEntradaNesteMes += toNum(r.fgtsAplicadoNaEntradaNesteMes);
+    g.parcelaFinanciamento += toNum(r.parcelaFinanciamento);
+    g.jurosPago += toNum(r.jurosPago || 0);
+    g.amortizacao += toNum(r.amortizacao || 0);
+    g.saldoDevedorRemanescente = toNum(r.saldoDevedorRemanescente);
+    g.saldo += toNum(r.saldo);
+  });
+
+  const linhas = Object.keys(agrupado).sort().map(k=>{
+    const v = agrupado[k];
+    const detalhesFixas = Array.from(new Set(v.detalhesFixas.filter(Boolean))).join("; ");
+    const detalhesPontuais = Array.from(new Set(v.detalhesPontuais.filter(Boolean))).join("; ");
+    return {
+      dataLabel: v.dataLabel,
+      salarioLiquido: fmt(v.salarioLiquido),
+      decimoTerceiro: fmt(v.decimoTerceiro),
+      bonusLiquido: fmt(v.bonusLiquido),
+      rendaExtra: fmt(v.rendaExtra),
+      totalEntradas: fmt(v.totalEntradas),
+      detalhesFixas,
+      totalFixas: fmt(v.totalFixas),
+      detalhesPontuais,
+      totalPontuais: fmt(v.totalPontuais),
+      totalDespesas: fmt(v.totalDespesas),
+      entradaAplicadaComprador: fmt(v.entradaAplicadaComprador),
+      fgtsAplicadoNaEntradaNesteMes: fmt(v.fgtsAplicadoNaEntradaNesteMes),
+      parcelaFinanciamento: fmt(v.parcelaFinanciamento),
+      jurosPago: fmt(v.jurosPago),
+      amortizacao: fmt(v.amortizacao),
+      saldoDevedorRemanescente: fmt(v.saldoDevedorRemanescente),
+      saldo: fmt(v.saldo)
+    };
+  });
+
+  // calcular saldo acumulado
+  let acumulado = 0;
+  linhas.forEach(row => {
+    const valorSaldo = parseFloat(String(row.saldo).replace(',','')) || 0;
+    acumulado += valorSaldo;
+    row.saldoAcumulado = fmt(acumulado);
+  });
+
+  const headers = ["Mês/Ano","Salário Líq.","13º","Bônus","Renda Extra","Entradas","Despesas Fixas","Tot. Fixas","Despesas Pontuais (detalhes)","Tot. Pontuais","Total Despesas","Entrada Comprador","FGTS entrada","Parcela Financiamento","Juros Pago","Amortização","Saldo Devedor","Saldo Líq.","Saldo Acumulado"];
+  const rows = linhas.map(r=>[
+    r.dataLabel, r.salarioLiquido, r.decimoTerceiro, r.bonusLiquido, r.rendaExtra, r.totalEntradas,
+    `"${r.detalhesFixas}"`, r.totalFixas, `"${r.detalhesPontuais}"`, r.totalPontuais,
+    r.totalDespesas, r.entradaAplicadaComprador, r.fgtsAplicadoNaEntradaNesteMes, r.parcelaFinanciamento, r.jurosPago, r.amortizacao, r.saldoDevedorRemanescente, r.saldo, r.saldoAcumulado
+  ]);
+  const csv = [headers.join(','), ...rows.map(r=>r.join(','))].join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'simulacao_fluxo_consolidado.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+});
+
+/* ---------- render tabela consolidada por mês/ano ---------- */
+function renderTabela(fluxo, meta){
+  const agrupado = {};
+  fluxo.forEach(r => {
+    const chave = `${r.ano}-${String(r.mesDoAno).padStart(2,'0')}`;
+    if(!agrupado[chave]) {
+      agrupado[chave] = {
+        ano: r.ano, mes: r.mesDoAno, dataLabel: `${String(r.mesDoAno).padStart(2,'0')}/${r.ano}`,
+        salarioLiquido:0, decimoTerceiro:0, bonusLiquido:0, rendaExtra:0, totalEntradas:0,
+        detalhesFixas:[], totalFixas:0, detalhesPontuais:[], totalPontuais:0, totalDespesas:0,
+        entradaAplicadaComprador:0, fgtsAplicadoNaEntradaNesteMes:0, parcelaFinanciamento:0,
+        jurosPago:0, amortizacao:0, saldoDevedorRemanescente:0, saldo:0
+      };
+    }
+    const g = agrupado[chave];
+    const toNum = v => parseFloat(String(v).replace(',','').replace(/\s/g,'')) || 0;
+
+    g.salarioLiquido += toNum(r.salarioLiquido);
+    g.decimoTerceiro += toNum(r.decimoTerceiro);
+    g.bonusLiquido += toNum(r.bonusLiquido);
+    g.rendaExtra += toNum(r.rendaExtra || 0);
+    g.totalEntradas += toNum(r.totalEntradas);
+
+    g.totalFixas += toNum(r.totalFixas);
+    if(r.detalhesFixas) g.detalhesFixas.push(r.detalhesFixas);
+
+    g.totalPontuais += toNum(r.totalPontuais);
+    if(r.detalhesPontuais && r.detalhesPontuais.trim()) g.detalhesPontuais.push(r.detalhesPontuais);
+
+    g.totalDespesas += toNum(r.totalDespesas);
+    g.entradaAplicadaComprador += toNum(r.entradaAplicadaComprador);
+    g.fgtsAplicadoNaEntradaNesteMes += toNum(r.fgtsAplicadoNaEntradaNesteMes);
+    g.parcelaFinanciamento += toNum(r.parcelaFinanciamento || 0);
+    g.jurosPago += toNum(r.jurosPago || 0);
+    g.amortizacao += toNum(r.amortizacao || 0);
+    g.saldoDevedorRemanescente = toNum(r.saldoDevedorRemanescente);
+    g.saldo += toNum(r.saldo);
+  });
+
+  const linhas = Object.keys(agrupado).sort().map(k=>{
+    const v = agrupado[k];
+    const detalhesFixas = Array.from(new Set(v.detalhesFixas.filter(Boolean))).join("; ");
+    const detalhesPontuais = Array.from(new Set(v.detalhesPontuais.filter(Boolean))).join("; ");
+    return {
+      dataLabel: v.dataLabel,
+      salarioLiquido: fmt(v.salarioLiquido),
+      decimoTerceiro: fmt(v.decimoTerceiro),
+      bonusLiquido: fmt(v.bonusLiquido),
+      rendaExtra: fmt(v.rendaExtra),
+      totalEntradas: fmt(v.totalEntradas),
+      detalhesFixas,
+      totalFixas: fmt(v.totalFixas),
+      detalhesPontuais,
+      totalPontuais: fmt(v.totalPontuais),
+      totalDespesas: fmt(v.totalDespesas),
+      entradaAplicadaComprador: fmt(v.entradaAplicadaComprador),
+      fgtsAplicadoNaEntradaNesteMes: fmt(v.fgtsAplicadoNaEntradaNesteMes),
+      parcelaFinanciamento: fmt(v.parcelaFinanciamento),
+      jurosPago: fmt(v.jurosPago),
+      amortizacao: fmt(v.amortizacao),
+      saldoDevedorRemanescente: fmt(v.saldoDevedorRemanescente),
+      saldo: fmt(v.saldo)
+    };
+  });
+
+  let acumulado = 0;
+  linhas.forEach(row=>{
+    const valorSaldo = parseFloat(String(row.saldo).replace(',','')) || 0;
+    acumulado += valorSaldo;
+    row.saldoAcumulado = fmt(acumulado);
+  });
+
+  let html = `<h2>Fluxo Consolidado (consolidado por mês/ano)</h2>
+    <div class="note"><strong>Resumo:</strong> Preço R$ ${fmt(meta.precoImovel)} → Preço efetivo R$ ${fmt(meta.precoEfetivo)}; Entrada 20% R$ ${fmt(meta.entrada20)}; Saldo financiado inicial R$ ${fmt(meta.saldoFinanciadoInicial)}; Prestação inicial R$ ${fmt(meta.prestacaoInicial)}; FGTS aplicado R$ ${fmt(meta.fgtsAplicadoTotal)}; FGTS restante R$ ${fmt(meta.fgtsRestante)}.</div>
+    <table><thead><tr>
+    <th class="left">Mês/Ano</th><th>Salário Líq.</th><th>13º</th><th>Bônus</th><th>Renda Extra</th><th>Entradas</th>
+    <th class="left">Despesas Fixas</th><th>Tot. Fixas</th><th class="left">Despesas Pontuais</th><th>Tot. Pontuais</th><th>Total Despesas</th>
+    <th>Entrada Comprador</th><th>FGTS (entrada)</th><th>Parcela Finan.</th><th>Juros Pago</th><th>Amortização</th><th>Saldo Devedor</th><th>Saldo Líq.</th><th>Saldo Acumulado</th>
+    </tr></thead><tbody>`;
+
+  linhas.forEach(r=>{
+    const saldoNum = parseFloat(String(r.saldo).replace(',','')) || 0;
+    const saldoClass = saldoNum < 0 ? 'neg' : '';
+    const acumuladoNum = parseFloat(String(r.saldoAcumulado).replace(',','')) || 0;
+    const acumuladoClass = acumuladoNum < 0 ? 'neg' : '';
+
+    html += `<tr>
+      <td class="left">${r.dataLabel}</td>
+      <td>R$ ${r.salarioLiquido}</td><td>R$ ${r.decimoTerceiro}</td><td>R$ ${r.bonusLiquido}</td><td>R$ ${r.rendaExtra}</td><td>R$ ${r.totalEntradas}</td>
+      <td class="left">${r.detalhesFixas || '-'}</td><td>R$ ${r.totalFixas}</td><td class="left">${r.detalhesPontuais || '-'}</td><td>R$ ${r.totalPontuais}</td>
+      <td>R$ ${r.totalDespesas}</td><td>R$ ${r.entradaAplicadaComprador}</td><td>R$ ${r.fgtsAplicadoNaEntradaNesteMes}</td>
+      <td>R$ ${r.parcelaFinanciamento}</td><td>R$ ${r.jurosPago}</td><td>R$ ${r.amortizacao}</td>
+      <td>R$ ${r.saldoDevedorRemanescente}</td>
+      <td class="${saldoClass}">R$ ${r.saldo}</td>
+      <td class="${acumuladoClass}">R$ ${r.saldoAcumulado}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table>`;
+  html += `<div class="disclaimer"><strong>Aviso:</strong> Esta é uma estimativa de valores. Não há ajuste automático por variação de taxas, e não assumimos responsabilidade pelos valores apresentados. Para condições ou consultas específicas, solicite contato com um profissional de sua confiança.</div>`;
+  document.getElementById('resultado').innerHTML = html;
+}
+
+/* ---------- INSS / IRRF simplificados ---------- */
+function calcularINSS(salarioBruto) {
+  const faixas = [
+    { limite: 1621.00, aliquota: 0.075 },
+    { limite: 2902.84, aliquota: 0.09 },
+    { limite: 4354.27, aliquota: 0.12 },
+    { limite: 8475.55, aliquota: 0.14 }
+  ];
+  let desconto = 0, restante = salarioBruto, limiteAnterior = 0;
+  for (let f of faixas) {
+    const faixaValor = Math.min(restante, f.limite - limiteAnterior);
+    if (faixaValor > 0) {
+      desconto += faixaValor * f.aliquota;
+      restante -= faixaValor;
+    }
+    limiteAnterior = f.limite;
+  }
+  return desconto;
+}
+function calcularIRRF(salarioBruto, inss) {
+  const base = salarioBruto - inss;
+  const faixas = [
+    { limite: 2428.80, aliquota: 0.0, deducao: 0.0 },
+    { limite: 2826.66, aliquota: 0.075, deducao: 182.16 },
+    { limite: 3751.05, aliquota: 0.15, deducao: 394.16 },
+    { limite: 4664.68, aliquota: 0.225, deducao: 675.49 },
+    { limite: 999999, aliquota: 0.275, deducao: 908.73 }
+  ];
+  for (let f of faixas) {
+    if (base <= f.limite) {
+      return Math.max(0, base * f.aliquota - f.deducao);
+    }
+  }
+  return 0;
 }
 </script>
 </body>
