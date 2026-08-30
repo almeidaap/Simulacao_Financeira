@@ -2,141 +2,110 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Simulação Financeira - Imóvel</title>
+  <title>Simulação de Financiamento - Tabela Price</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
     h1, h2 { color: #2c3e50; }
     label { display: block; margin-top: 10px; }
-    input { padding: 5px; width: 200px; }
+    input { padding: 5px; width: 250px; }
     button { margin-top: 15px; padding: 10px 20px; }
     table { border-collapse: collapse; width: 100%; margin-top: 20px; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
     th { background-color: #f4f4f4; }
-    .positivo { color: green; font-weight: bold; }
-    .negativo { color: red; font-weight: bold; }
   </style>
 </head>
 <body>
-  <h1>Simulação Financeira - Imóvel</h1>
+  <h1>Simulação de Financiamento - Tabela Price</h1>
 
   <h2>Dados de Entrada</h2>
   <label>Valor do Imóvel:</label>
   <input type="number" id="valorImovel" placeholder="475000">
 
-  <label>Salário Bruto:</label>
-  <input type="number" id="salarioBruto" placeholder="12477.61">
+  <label>Valor da Entrada:</label>
+  <input type="number" id="valorEntrada" placeholder="50000">
 
-  <label>Despesas Atuais (aluguel + condomínio):</label>
-  <input type="number" id="despesasAtuais" placeholder="2500">
+  <label>Data de Referência:</label>
+  <input type="date" id="dataReferencia">
 
-  <label>Despesas Novas (parcela + condomínio):</label>
-  <input type="number" id="despesasNovas" placeholder="3400">
+  <label>Taxa de Juros Anual (%):</label>
+  <input type="number" id="taxaJuros" placeholder="10">
 
-  <label>Prestação do Financiamento:</label>
-  <input type="number" id="prestacaoFinanciamento" placeholder="3000">
+  <label>Número de Meses do Financiamento:</label>
+  <input type="number" id="numMeses" placeholder="420">
 
-  <button onclick="simular()">Simular</button>
+  <button onclick="simularFinanciamento()">Calcular Financiamento</button>
 
   <h2>Resultado</h2>
-  <table id="resultado">
+  <table id="resultadoFinanciamento">
     <tr>
       <th>Mês</th>
-      <th>Total Entradas</th>
-      <th>Total Saídas</th>
-      <th>Saldo Líquido</th>
+      <th>Data</th>
+      <th>Prestação (R$)</th>
+      <th>Juros (R$)</th>
+      <th>Amortização (R$)</th>
+      <th>Saldo Devedor (R$)</th>
     </tr>
   </table>
 
 <script>
-// Funções simplificadas em JS
+function financiamentoPrice(valorFinanciado, taxaJurosAnual, meses) {
+  const i_m = (taxaJurosAnual / 100) / 12;
+  const pmt = valorFinanciado * (i_m * Math.pow(1 + i_m, meses)) / (Math.pow(1 + i_m, meses) - 1);
 
-function calcularINSS(salarioBruto) {
-  const faixas = [
-    [1621.00, 0.075],
-    [2902.84, 0.09],
-    [4354.27, 0.12],
-    [8475.55, 0.14]
-  ];
-  let desconto = 0, restante = salarioBruto, limiteAnterior = 0;
-  for (let [limite, aliquota] of faixas) {
-    const faixaValor = Math.min(restante, limite - limiteAnterior);
-    if (faixaValor > 0) {
-      desconto += faixaValor * aliquota;
-      restante -= faixaValor;
-    }
-    limiteAnterior = limite;
-  }
-  return desconto;
-}
+  let saldoDevedor = valorFinanciado;
+  let amortizacao = [];
 
-function calcularIRRF(salarioBruto, inss) {
-  const base = salarioBruto - inss;
-  const faixas = [
-    [2428.80, 0.0, 0.0],
-    [2826.66, 0.075, 182.16],
-    [3751.05, 0.15, 394.16],
-    [4664.68, 0.225, 675.49],
-    [999999, 0.275, 908.73]
-  ];
-  for (let [limite, aliquota, deducao] of faixas) {
-    if (base <= limite) return base * aliquota - deducao;
-  }
-  return 0;
-}
-
-function fluxoEntradas(meses, salarioBruto) {
-  let fluxo = [];
   for (let mes = 1; mes <= meses; mes++) {
-    const inss = calcularINSS(salarioBruto);
-    const irrf = calcularIRRF(salarioBruto, inss);
-    const salarioLiquido = salarioBruto - inss - Math.max(irrf, 0);
-    fluxo.push({ mes, total_entradas: salarioLiquido });
+    const juros = saldoDevedor * i_m;
+    const amortizacaoMes = pmt - juros;
+    saldoDevedor -= amortizacaoMes;
+
+    amortizacao.push({
+      mes: mes,
+      prestacao_base: pmt,
+      juros: juros,
+      amortizacao: amortizacaoMes,
+      saldo_devedor: saldoDevedor
+    });
   }
-  return fluxo;
+  return amortizacao;
 }
 
-function fluxoDespesasTransicao(meses, despesasAtuais, despesasNovas, inicioNovas, fimAtuais) {
-  let fluxo = [];
-  for (let mes = 1; mes <= meses; mes++) {
-    let totalMes = 0;
-    if (!fimAtuais || mes <= fimAtuais) totalMes += despesasAtuais;
-    if (mes >= inicioNovas) totalMes += despesasNovas;
-    fluxo.push({ mes, total_despesas: totalMes });
-  }
-  return fluxo;
-}
-
-function simular() {
+function simularFinanciamento() {
   const valorImovel = parseFloat(document.getElementById("valorImovel").value) || 0;
-  const salarioBruto = parseFloat(document.getElementById("salarioBruto").value) || 0;
-  const despesasAtuais = parseFloat(document.getElementById("despesasAtuais").value) || 0;
-  const despesasNovas = parseFloat(document.getElementById("despesasNovas").value) || 0;
-  const prestacaoFinanciamento = parseFloat(document.getElementById("prestacaoFinanciamento").value) || 0;
+  const valorEntrada = parseFloat(document.getElementById("valorEntrada").value) || 0;
+  const dataReferencia = new Date(document.getElementById("dataReferencia").value);
+  const taxaJuros = parseFloat(document.getElementById("taxaJuros").value) || 0;
+  const numMeses = parseInt(document.getElementById("numMeses").value) || 0;
 
-  const meses = 12; // exemplo: 12 meses
-  const entradas = fluxoEntradas(meses, salarioBruto);
-  const despesas = fluxoDespesasTransicao(meses, despesasAtuais, despesasNovas, 2, 4);
+  const valorFinanciado = valorImovel - valorEntrada;
+  const fluxo = financiamentoPrice(valorFinanciado, taxaJuros, numMeses);
 
-  const tabela = document.getElementById("resultado");
+  const tabela = document.getElementById("resultadoFinanciamento");
   tabela.innerHTML = `
     <tr>
       <th>Mês</th>
-      <th>Total Entradas</th>
-      <th>Total Saídas</th>
-      <th>Saldo Líquido</th>
+      <th>Data</th>
+      <th>Prestação (R$)</th>
+      <th>Juros (R$)</th>
+      <th>Amortização (R$)</th>
+      <th>Saldo Devedor (R$)</th>
     </tr>
   `;
 
-  for (let mes = 1; mes <= meses; mes++) {
-    const entradasMes = entradas.find(f => f.mes === mes).total_entradas;
-    const despesasMes = despesas.find(f => f.mes === mes).total_despesas + prestacaoFinanciamento;
-    const saldo = entradasMes - despesasMes;
+  for (let item of fluxo) {
+    const dataMes = new Date(dataReferencia);
+    dataMes.setMonth(dataReferencia.getMonth() + item.mes - 1);
+    const dataFormatada = dataMes.toLocaleDateString("pt-BR");
+
     tabela.innerHTML += `
       <tr>
-        <td>${mes}</td>
-        <td>R$ ${entradasMes.toFixed(2)}</td>
-        <td>R$ ${despesasMes.toFixed(2)}</td>
-        <td class="${saldo >= 0 ? 'positivo' : 'negativo'}">R$ ${saldo.toFixed(2)}</td>
+        <td>${item.mes}</td>
+        <td>${dataFormatada}</td>
+        <td>R$ ${item.prestacao_base.toFixed(2)}</td>
+        <td>R$ ${item.juros.toFixed(2)}</td>
+        <td>R$ ${item.amortizacao.toFixed(2)}</td>
+        <td>R$ ${item.saldo_devedor.toFixed(2)}</td>
       </tr>
     `;
   }
