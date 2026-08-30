@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Simulação Completa de Financiamento (FGTS) — Versão Final</title>
+  <title>Fora de Projeto - Simulação Completa de Financiamento (possibilidade de FGTS) </title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     body { font-family: Arial, sans-serif; margin:18px; color:#222; }
@@ -39,10 +39,10 @@
     <input type="date" id="dataInicio">
 
     <label>Quantidade de meses para simulação</label>
-    <input type="number" id="qtdSimulacao" value="360">
+    <input type="number" id="qtdSimulacao" value="48">
 
     <label>Preço do imóvel (R$)</label>
-    <input type="number" id="precoImovel" value="475000">
+    <input type="number" id="precoImovel" value="400000">
 
     <label>Percentual de entrada (%)</label>
     <input type="number" id="percentualEntrada" value="20">
@@ -78,7 +78,7 @@
     <input type="number" id="taxaJuros" value="10">
 
     <label>Prazo do financiamento (meses)</label>
-    <input type="number" id="prazoMeses" value="360">
+    <input type="number" id="prazoMeses" value="420">
   </section>
 
   <hr>
@@ -102,7 +102,7 @@
   <section>
     <h2>Fluxo (entradas e despesas)</h2>
     <label>Salário bruto mensal (R$)</label>
-    <input type="number" id="salarioBruto" value="12477.61">
+    <input type="number" id="salarioBruto" value="10000">
 
     <label>Meses 13º (ex: 12 ou 11,12)</label>
     <input type="text" id="meses13" value="12">
@@ -129,12 +129,12 @@
 
     <h3>Despesas Pontuais (cada uma com data específica)</h3>
     <div class="flex">
-      <input type="text" id="nomePontual" placeholder="Descrição (ex: Reforma)" class="inline wide">
+      <input type="text" id="nomePontual" placeholder="Descrição (ex: Cartão de Crédito)" class="inline wide">
       <input type="number" id="valorPontual" placeholder="Valor (R$)" class="inline small">
       <input type="date" id="dataPontual" class="inline">
       <button id="btnAddPontual" class="btn-small">Adicionar pontual</button>
     </div>
-    <div class="muted">As despesas pontuais são lançadas na data exata que você informar e não repetem automaticamente.</div>
+    <div class="muted">As despesas pontuais são lançadas na data exata que você informar e não repetem automaticamente. Lance aqui despesas ex.: Condominio novo, Seguro carro, Cartão de Crédtio, Registro do Imóvel, Entrada no Ato, etc.</div>
     <ul id="listaPontuais"></ul>
   </section>
 
