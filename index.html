@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Fora de Projeto - Simulação Completa de Financiamento (possibilidade de FGTS) </title>
+  <title>Simulação Completa de Financiamento (FGTS) — Sistema PRICE</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     body { font-family: Arial, sans-serif; margin:18px; color:#222; }
@@ -30,11 +30,12 @@
   </style>
 </head>
 <body>
-  <h1>Simulação de Financiamento Imobiliário (FGTS)</h1>
+  <h1>Simulação de Financiamento Imobiliário (Sistema PRICE)</h1>
+  <div class="muted">Este simulador é apenas para auxiliar no planejamento financeiro, os valores apresentados não serão os mesmos dos valores reais.</div>
+  <div class="muted">Atenção: para declarar centavos, utilize ponto (100.00) ao invés de vírgula (100,00). Atente-se ao formato das datas.</div>
+
 
   <section>
-    <h2>Configuração</h2>
-
     <label>Data inicial</label>
     <input type="date" id="dataInicio">
 
@@ -42,7 +43,7 @@
     <input type="number" id="qtdSimulacao" value="48">
 
     <label>Preço do imóvel (R$)</label>
-    <input type="number" id="precoImovel" value="400000">
+    <input type="number" id="precoImovel" value="475000">
 
     <label>Percentual de entrada (%)</label>
     <input type="number" id="percentualEntrada" value="20">
@@ -62,6 +63,9 @@
 
       <label>Valor última parcela (R$)</label>
       <input type="number" id="ultimaParcela" value="0">
+	  
+	  <label>Data da primeira parcela</label>
+	  <input type="date" id="dataPrimeiraParcela">
 
       <div class="note">Adicione balões pontuais (data + valor). Cada balão será aplicado apenas na data exata que você informar.</div>
 
@@ -86,6 +90,7 @@
   <section>
     <h2>FGTS</h2>
     <label>Valor FGTS (R$)</label>
+	<div class="muted"> Valor do FGTS que deseja utilizar (quando/se disponível).</div>
     <input type="number" id="fgtsValor" value="0">
     <label>Data de disponibilidade do FGTS</label>
     <input type="date" id="fgtsData">
@@ -102,15 +107,17 @@
   <section>
     <h2>Fluxo (entradas e despesas)</h2>
     <label>Salário bruto mensal (R$)</label>
-    <input type="number" id="salarioBruto" value="10000">
+    <input type="number" id="salarioBruto" value="10000.00">
 
-    <label>Meses 13º (ex: 12 ou 11,12)</label>
+    <label>Meses 13º (ex: 12 ou 5,12)</label>
+	<div class="muted"> Os meses aqui estão divididos de 1 (Janeiro) a 12 (Dezembro).</div>
     <input type="text" id="meses13" value="12">
 
     <label>13º em duas parcelas?</label>
     <select id="duasParcelas"><option value="false">Não</option><option value="true">Sim</option></select>
 
     <label>Meses de bônus (ex: 2,5,8,11)</label>
+	<div class="muted"> Os meses aqui estão divididos de 1 (Janeiro) a 12 (Dezembro).</div>
     <input type="text" id="mesesBonus" value="">
 
     <label>Valor bruto do bônus (R$)</label>
@@ -120,21 +127,23 @@
     <input type="number" id="rendaExtra" value="0">
 
     <h3>Despesas Fixas</h3>
+	<div class="muted"> Lance todas as despesas fixas que terá durante o contrato de financiamento (Ex.: Energia, Condomínio novo, Telefonia, Streaming etc.).</div>
     <div class="flex">
-      <input type="text" id="nomeFixa" placeholder="Ex: Aluguel" class="inline wide">
-      <input type="number" id="valorFixa" placeholder="2000" class="inline small">
+      <input type="text" id="nomeFixa" placeholder="Ex: Energia" class="inline wide">
+      <input type="number" id="valorFixa" placeholder="R$ 150.00" class="inline small">
       <button id="btnAddFixa" class="btn-small">Adicionar fixa</button>
     </div>
     <ul id="listaFixas"></ul>
 
     <h3>Despesas Pontuais (cada uma com data específica)</h3>
+	<div class="muted"> Lance todas as despesas pontuais que terá durante o contrato de financiamento (Ex.: Aluguel atual, condomínio atual, Cartão de Crédito etc.).</div>
     <div class="flex">
-      <input type="text" id="nomePontual" placeholder="Descrição (ex: Cartão de Crédito)" class="inline wide">
+      <input type="text" id="nomePontual" placeholder="Ex: Aluguel" class="inline wide">
       <input type="number" id="valorPontual" placeholder="Valor (R$)" class="inline small">
       <input type="date" id="dataPontual" class="inline">
       <button id="btnAddPontual" class="btn-small">Adicionar pontual</button>
     </div>
-    <div class="muted">As despesas pontuais são lançadas na data exata que você informar e não repetem automaticamente. Lance aqui despesas ex.: Condominio novo, Seguro carro, Cartão de Crédtio, Registro do Imóvel, Entrada no Ato, etc.</div>
+    <div class="muted">As despesas pontuais são lançadas na data exata que você informar e não repetem automaticamente.</div>
     <ul id="listaPontuais"></ul>
   </section>
 
@@ -260,7 +269,7 @@ function gerarParcelasConstrutoraLinearComBaloes(mesesParcelamento, primeira, ul
 }
 
 /* ---------- cálculos principais ---------- */
-function calcularEntradaEFinanciamento({precoImovel, fgtsDisponivelValor=0, usarFgtsNaEntrada=false, percentualEntrada=20, taxaJurosAnual=10, prazoFinanciamentoMeses=360}){
+function calcularEntradaEFinanciamento({precoImovel, fgtsDisponivelValor=0, usarFgtsNaEntrada=false, percentualEntrada=20, taxaJurosAnual=10, prazoFinanciamentoMeses=420}){
   precoImovel = safeFloat(precoImovel);
   fgtsDisponivelValor = safeFloat(fgtsDisponivelValor);
   percentualEntrada = safeFloat(percentualEntrada);
@@ -269,7 +278,7 @@ function calcularEntradaEFinanciamento({precoImovel, fgtsDisponivelValor=0, usar
   let precoEfetivo = precoImovel;
   if(usarFgtsNaEntrada && fgtsDisponivelValor>0){
     const aplicar = Math.min(fgtsDisponivelValor, precoImovel);
-    precoEfetivo = precoImovel - aplicar;
+    precoEfetivo = precoImovel;
     fgtsAplicadoNaEntrada = aplicar;
   }
 
@@ -306,10 +315,9 @@ function aplicarFgtsNoFinanciamento({saldoDevedorAtual, prestacaoAtual, taxaJuro
     const aplicar = Math.min(fgtsDisponivelValor, saldoDevedorAtual);
     novoSaldo = Math.max(0, saldoDevedorAtual - aplicar);
     fgtsUsado = aplicar;
-    if(prazoRestanteMeses>0){
-      if(taxaMensal>0) novaPrestacao = novoSaldo * (taxaMensal / (1 - Math.pow(1+taxaMensal, -prazoRestanteMeses)));
-      else novaPrestacao = novoSaldo / prazoRestanteMeses;
-    } else novaPrestacao = 0;
+    // Mantém a parcela constante após abatimento com FGTS.
+    // O benefício aparece na redução dos juros e aumento da amortização.
+    novaPrestacao = prestacaoAtual;
   } else {
     const meses = 12;
     const maxReducaoPorMes = 0.8 * prestacaoAtual;
@@ -348,6 +356,7 @@ document.getElementById('btnGerar').addEventListener('click', function(){
     const mesesParcelamento = Math.max(1, Math.floor(document.getElementById('mesesParcelamento').value||24));
     const primeiraParcela = safeFloat(document.getElementById('primeiraParcela').value);
     const ultimaParcela = safeFloat(document.getElementById('ultimaParcela').value);
+	const dataPrimeiraParcelaStr = document.getElementById('dataPrimeiraParcela')?.value || "";
 
     const taxaJuros = safeFloat(document.getElementById('taxaJuros').value) || 10;
     const prazoMeses = Math.max(0, Math.floor(document.getElementById('prazoMeses').value||360));
@@ -384,11 +393,28 @@ document.getElementById('btnGerar').addEventListener('click', function(){
 
     // entrada parcelada (construtora) - se usarConstrutora, gerar com balões pontuais
     let entradaParceladaArray = [];
-    if(usarConstrutora){
-      const startMonthNum = inicio.getMonth()+1; // 1..12
-      const startYearNum = inicio.getFullYear();
-      entradaParceladaArray = gerarParcelasConstrutoraLinearComBaloes(mesesParcelamento, primeiraParcela||0, ultimaParcela||0, baloesPontuais, startMonthNum, startYearNum);
-    }
+	if(usarConstrutora){
+
+	  let startMonthNum = inicio.getMonth()+1;
+	  let startYearNum = inicio.getFullYear();
+
+	  if(dataPrimeiraParcelaStr){
+		const p = dataPrimeiraParcelaStr.split('-');
+
+		startYearNum = parseInt(p[0],10);
+		startMonthNum = parseInt(p[1],10);
+	  }
+
+	  entradaParceladaArray =
+		  gerarParcelasConstrutoraLinearComBaloes(
+			  mesesParcelamento,
+			  primeiraParcela||0,
+			  ultimaParcela||0,
+			  baloesPontuais,
+			  startMonthNum,
+			  startYearNum
+		  );
+	}
 
     // financiamento inicial
     let saldoDevedor = calc.saldoFinanciadoInicial;
@@ -516,14 +542,35 @@ document.getElementById('btnGerar').addEventListener('click', function(){
 
       // entrada comprador aplicada
       let entradaAplicadaComprador = 0;
-      if(!usarConstrutora){
-        if(i===0) entradaAplicadaComprador = calc.entrada20; // à vista no mês 0
-      } else {
-        // usar parcela da construtora: entrada parcelada ao longo de mesesParcelamento
-        if(i < mesesParcelamento){
-          entradaAplicadaComprador = (entradaParceladaArray[i] || 0);
-        }
-      }
+	if(!usarConstrutora){
+
+	  if(i===0)
+		entradaAplicadaComprador = calc.entrada20;
+
+	} else {
+
+	  let offsetParcela = i;
+
+	  if(dataPrimeiraParcelaStr){
+
+		const p = dataPrimeiraParcelaStr.split('-');
+
+		const anoParcela = parseInt(p[0],10);
+		const mesParcela = parseInt(p[1],10);
+
+		offsetParcela =
+		  (ano * 12 + mesDoAno) -
+		  (anoParcela * 12 + mesParcela);
+	  }
+
+	  if(
+		  offsetParcela >= 0 &&
+		  offsetParcela < mesesParcelamento
+	  ){
+		  entradaAplicadaComprador =
+			  entradaParceladaArray[offsetParcela] || 0;
+	  }
+	}
 
       // FGTS aplicado na entrada no mês 0
       let fgtsAplicadoNaEntradaNesteMes = (i===0 ? calc.fgtsAplicadoNaEntrada : 0);
@@ -551,7 +598,7 @@ document.getElementById('btnGerar').addEventListener('click', function(){
         }
       }
 
-      const saldo = totalEntradas - totalDespesas - parcelaFinanciamento - entradaAplicadaComprador;
+      const saldo = totalEntradas - totalDespesas - parcelaFinanciamento - entradaAplicadaComprador + fgtsAplicadoNaEntradaNesteMes;
 
       fluxo.push({
         index: i+1,
@@ -713,104 +760,43 @@ document.getElementById('btnExport').addEventListener('click', function(){
 
 /* ---------- render tabela consolidada por mês/ano ---------- */
 function renderTabela(fluxo, meta){
-  const agrupado = {};
-  fluxo.forEach(r => {
-    const chave = `${r.ano}-${String(r.mesDoAno).padStart(2,'0')}`;
-    if(!agrupado[chave]) {
-      agrupado[chave] = {
-        ano: r.ano, mes: r.mesDoAno, dataLabel: `${String(r.mesDoAno).padStart(2,'0')}/${r.ano}`,
-        salarioLiquido:0, decimoTerceiro:0, bonusLiquido:0, rendaExtra:0, totalEntradas:0,
-        detalhesFixas:[], totalFixas:0, detalhesPontuais:[], totalPontuais:0, totalDespesas:0,
-        entradaAplicadaComprador:0, fgtsAplicadoNaEntradaNesteMes:0, parcelaFinanciamento:0,
-        jurosPago:0, amortizacao:0, saldoDevedorRemanescente:0, saldo:0
-      };
-    }
-    const g = agrupado[chave];
-    const toNum = v => parseFloat(String(v).replace(',','').replace(/\s/g,'')) || 0;
-
-    g.salarioLiquido += toNum(r.salarioLiquido);
-    g.decimoTerceiro += toNum(r.decimoTerceiro);
-    g.bonusLiquido += toNum(r.bonusLiquido);
-    g.rendaExtra += toNum(r.rendaExtra || 0);
-    g.totalEntradas += toNum(r.totalEntradas);
-
-    g.totalFixas += toNum(r.totalFixas);
-    if(r.detalhesFixas) g.detalhesFixas.push(r.detalhesFixas);
-
-    g.totalPontuais += toNum(r.totalPontuais);
-    if(r.detalhesPontuais && r.detalhesPontuais.trim()) g.detalhesPontuais.push(r.detalhesPontuais);
-
-    g.totalDespesas += toNum(r.totalDespesas);
-    g.entradaAplicadaComprador += toNum(r.entradaAplicadaComprador);
-    g.fgtsAplicadoNaEntradaNesteMes += toNum(r.fgtsAplicadoNaEntradaNesteMes);
-    g.parcelaFinanciamento += toNum(r.parcelaFinanciamento || 0);
-    g.jurosPago += toNum(r.jurosPago || 0);
-    g.amortizacao += toNum(r.amortizacao || 0);
-    g.saldoDevedorRemanescente = toNum(r.saldoDevedorRemanescente);
-    g.saldo += toNum(r.saldo);
-  });
-
-  const linhas = Object.keys(agrupado).sort().map(k=>{
-    const v = agrupado[k];
-    const detalhesFixas = Array.from(new Set(v.detalhesFixas.filter(Boolean))).join("; ");
-    const detalhesPontuais = Array.from(new Set(v.detalhesPontuais.filter(Boolean))).join("; ");
-    return {
-      dataLabel: v.dataLabel,
-      salarioLiquido: fmt(v.salarioLiquido),
-      decimoTerceiro: fmt(v.decimoTerceiro),
-      bonusLiquido: fmt(v.bonusLiquido),
-      rendaExtra: fmt(v.rendaExtra),
-      totalEntradas: fmt(v.totalEntradas),
-      detalhesFixas,
-      totalFixas: fmt(v.totalFixas),
-      detalhesPontuais,
-      totalPontuais: fmt(v.totalPontuais),
-      totalDespesas: fmt(v.totalDespesas),
-      entradaAplicadaComprador: fmt(v.entradaAplicadaComprador),
-      fgtsAplicadoNaEntradaNesteMes: fmt(v.fgtsAplicadoNaEntradaNesteMes),
-      parcelaFinanciamento: fmt(v.parcelaFinanciamento),
-      jurosPago: fmt(v.jurosPago),
-      amortizacao: fmt(v.amortizacao),
-      saldoDevedorRemanescente: fmt(v.saldoDevedorRemanescente),
-      saldo: fmt(v.saldo)
-    };
-  });
-
-  let acumulado = 0;
-  linhas.forEach(row=>{
-    const valorSaldo = parseFloat(String(row.saldo).replace(',','')) || 0;
-    acumulado += valorSaldo;
-    row.saldoAcumulado = fmt(acumulado);
-  });
-
-  let html = `<h2>Fluxo Consolidado (consolidado por mês/ano)</h2>
-    <div class="note"><strong>Resumo:</strong> Preço R$ ${fmt(meta.precoImovel)} → Preço efetivo R$ ${fmt(meta.precoEfetivo)}; Entrada 20% R$ ${fmt(meta.entrada20)}; Saldo financiado inicial R$ ${fmt(meta.saldoFinanciadoInicial)}; Prestação inicial R$ ${fmt(meta.prestacaoInicial)}; FGTS aplicado R$ ${fmt(meta.fgtsAplicadoTotal)}; FGTS restante R$ ${fmt(meta.fgtsRestante)}.</div>
+  let html = `<h2>Fluxo Consolidado (mês/ano)</h2>
+    <div class="note"><strong>Resumo:</strong><br>
+    Valor de avaliação: R$ ${fmt(meta.valorAvaliacao)}<br>
+    Limite financiamento (80%): R$ ${fmt(meta.limiteFinanciamento)}<br>
+    Entrada obrigatória (20%): R$ ${fmt(meta.entradaObrigatoria)}<br>
+    FGTS aplicado: R$ ${fmt(meta.fgtsAplicadoNaEntrada)}<br>
+    Entrada do bolso: R$ ${fmt(meta.entradaDoBolso)}<br>
+    Custos cartório (5%): R$ ${fmt(meta.custosCartorio)}<br>
+    Desembolso inicial total: R$ ${fmt(meta.entradaDoBolso + meta.custosCartorio)}<br>
+    Prestação inicial: R$ ${fmt(meta.prestacaoInicial)}</div>
     <table><thead><tr>
     <th class="left">Mês/Ano</th><th>Salário Líq.</th><th>13º</th><th>Bônus</th><th>Renda Extra</th><th>Entradas</th>
     <th class="left">Despesas Fixas</th><th>Tot. Fixas</th><th class="left">Despesas Pontuais</th><th>Tot. Pontuais</th><th>Total Despesas</th>
-    <th>Entrada Comprador</th><th>FGTS (entrada)</th><th>Parcela Finan.</th><th>Juros Pago</th><th>Amortização</th><th>Saldo Devedor</th><th>Saldo Líq.</th><th>Saldo Acumulado</th>
+    <th>Entrada (bolso)</th><th>FGTS (entrada)</th><th>Parcela Finan.</th><th>Juros Pago</th><th>Amortização</th><th>Saldo Devedor</th><th>Saldo Líq.</th><th>Saldo Acumulado</th>
     </tr></thead><tbody>`;
 
-  linhas.forEach(r=>{
+  let acumulado = 0;
+  fluxo.forEach(r=>{
     const saldoNum = parseFloat(String(r.saldo).replace(',','')) || 0;
+    acumulado += saldoNum;
     const saldoClass = saldoNum < 0 ? 'neg' : '';
-    const acumuladoNum = parseFloat(String(r.saldoAcumulado).replace(',','')) || 0;
-    const acumuladoClass = acumuladoNum < 0 ? 'neg' : '';
+    const acumuladoClass = acumulado < 0 ? 'neg' : '';
 
     html += `<tr>
-      <td class="left">${r.dataLabel}</td>
+      <td class="left">${r.data}</td>
       <td>R$ ${r.salarioLiquido}</td><td>R$ ${r.decimoTerceiro}</td><td>R$ ${r.bonusLiquido}</td><td>R$ ${r.rendaExtra}</td><td>R$ ${r.totalEntradas}</td>
       <td class="left">${r.detalhesFixas || '-'}</td><td>R$ ${r.totalFixas}</td><td class="left">${r.detalhesPontuais || '-'}</td><td>R$ ${r.totalPontuais}</td>
       <td>R$ ${r.totalDespesas}</td><td>R$ ${r.entradaAplicadaComprador}</td><td>R$ ${r.fgtsAplicadoNaEntradaNesteMes}</td>
       <td>R$ ${r.parcelaFinanciamento}</td><td>R$ ${r.jurosPago}</td><td>R$ ${r.amortizacao}</td>
       <td>R$ ${r.saldoDevedorRemanescente}</td>
       <td class="${saldoClass}">R$ ${r.saldo}</td>
-      <td class="${acumuladoClass}">R$ ${r.saldoAcumulado}</td>
+      <td class="${acumuladoClass}">R$ ${fmt(acumulado)}</td>
     </tr>`;
   });
 
-  html += `</tbody></table>`;
-  html += `<div class="disclaimer"><strong>Aviso:</strong> Esta é uma estimativa de valores. Não há ajuste automático por variação de taxas, e não assumimos responsabilidade pelos valores apresentados. Para condições ou consultas específicas, solicite contato com um profissional de sua confiança.</div>`;
+  html += `</tbody></table>
+    <div class="disclaimer"><strong>Aviso:</strong> Esta é uma estimativa de valores. Não há ajuste automático por variação de taxas, e não assumimos responsabilidade pelos valores apresentados. Para condições específicas, consulte um profissional de confiança.</div>`;
   document.getElementById('resultado').innerHTML = html;
 }
 
